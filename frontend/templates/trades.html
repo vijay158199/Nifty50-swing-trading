@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Trade History{% endblock %}
+{% block page_title %}Trade History{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Filters</h2>
+      <div class="card-sub">Live-monitored trades only</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <form class="form-row" id="filter-form"
+          hx-get="/trades/table" hx-target="#trades-table-wrap" hx-trigger="change, submit">
+      <div class="field">
+        <label for="start">From</label>
+        <input type="date" name="start" id="start" />
+      </div>
+      <div class="field">
+        <label for="end">To</label>
+        <input type="date" name="end" id="end" />
+      </div>
+      <div class="field">
+        <label for="symbol">Stock</label>
+        <select name="symbol" id="symbol">
+          <option value="">All</option>
+          {% for sym in symbols %}<option value="{{ sym }}">{{ sym[:-3] if sym.endswith('.NS') else sym }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="direction">Direction</label>
+        <select name="direction" id="direction">
+          <option value="">All</option>
+          {% for d in directions %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="entry_type">Entry Type</label>
+        <select name="entry_type" id="entry_type">
+          <option value="">All</option>
+          {% for e in entry_types %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="status">Status</label>
+        <select name="status" id="status">
+          <option value="">All</option>
+          {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn primary" type="submit">Apply</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Trades</h2>
+      <div class="card-sub">Every column from the weekly monitoring sheet, one row per signal week</div>
+    </div>
+    <button class="btn danger"
+            hx-post="/trades/delete-all"
+            hx-target="#trades-table-wrap"
+            hx-swap="innerHTML"
+            hx-confirm="Delete the ENTIRE trade log? This removes every live trade and its snapshot permanently.">
+      Clear All
+    </button>
+  </div>
+  <div class="card-body flush table-scroll" id="trades-table-wrap">
+    {% include "_trades_table.html" %}
+  </div>
+</div>
+{% endblock %}

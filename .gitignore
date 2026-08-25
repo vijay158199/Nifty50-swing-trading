@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# local data - never commit trade history, secrets, or the session-signing key
+# NOTE: leading slash matters - anchors this to the repo root only, so it
+# does NOT also match backend/app/data/ (a real Python package, not data).
+/data/
+backend/.env
+.env
+
+# editor/OS cruft
+.vscode/
+.idea/
+Thumbs.db

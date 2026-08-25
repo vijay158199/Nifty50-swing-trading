@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}Overview{% endblock %}
+{% block page_title %}Overview{% endblock %}
+
+{% block content %}
+<div class="tile-grid">
+  <div class="tile">
+    <div class="tile-label">Active Setups This Week</div>
+    <div class="tile-value">{{ setups|length }}</div>
+    <div class="tile-sub">{{ quiet_count }} of {{ symbols_tracked }} tracked symbols quiet so far</div>
+  </div>
+
+  <div class="tile">
+    <div class="tile-label">Open Positions</div>
+    <div class="tile-value">{{ open_trades|length }}</div>
+    <div class="tile-sub">Awaiting entry or SL/TP, across any signal week</div>
+  </div>
+
+  <div class="tile">
+    <div class="tile-label">Win Rate (All-Time Live)</div>
+    <div class="tile-value">{{ "%.1f"|format(stats.win_rate_pct) }}%</div>
+    <div class="tile-sub">{{ stats.winning_trades }}W / {{ stats.losing_trades }}L of {{ stats.total_trades }} resolved</div>
+  </div>
+
+  <div class="tile">
+    <div class="tile-label">Net P/L (All-Time Live)</div>
+    <div class="tile-value {{ 'good' if stats.net_profit_points > 0 else ('critical' if stats.net_profit_points < 0 else '') }}">
+      {{ "%+.1f"|format(stats.net_profit_points) }} pts
+    </div>
+    <div class="tile-sub num">&#8377;{{ "%.0f"|format(stats.net_profit_amount) }}</div>
+  </div>
+
+  <div class="tile">
+    <div class="tile-label">Monitor Status</div>
+    {% if live_status.enabled %}
+      {% if heartbeat and heartbeat.status == 'ERROR' %}
+        <div class="tile-value" style="font-size: 16px;"><span class="pill critical"><span class="pill-dot"></span>Error</span></div>
+      {% else %}
+        <div class="tile-value" style="font-size: 16px;"><span class="pill good"><span class="pill-dot"></span>Live</span></div>
+      {% endif %}
+      {% if heartbeat %}<div class="tile-sub">Last poll {{ heartbeat.last_poll_at.strftime('%H:%M:%S') }} IST{% if heartbeat.detail %} &middot; {{ heartbeat.detail }}{% endif %}</div>{% endif %}
+    {% else %}
+      <div class="tile-value" style="font-size: 16px;"><span class="pill neutral"><span class="pill-dot"></span>Not Started</span></div>
+      <div class="tile-sub">Click Start below to begin monitoring.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>This Week's Setups</h2>
+      <div class="card-sub">Every symbol with a liquidity tap or further this week - {{ quiet_count }} of {{ symbols_tracked }} tracked symbols have nothing happening yet</div>
+    </div>
+  </div>
+  <div class="card-body flush table-scroll">
+    {% if setups %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Stock</th><th>Liquidity</th><th>Structure</th><th>Entry</th><th>Outcome</th></tr>
+      </thead>
+      <tbody>
+        {% for row in setups %}
+        {% set t = row.trade %}
+        {% set p = row.pipeline %}
+        <tr>
+          <td><strong>{{ t.symbol_label }}</strong></td>
+          <td>
+            {% if p.liquidity %}
+              {{ p.liquidity.side }} taken<br />
+              <span class="setup-note-inline" style="max-width:none;">{{ p.liquidity.type or "-" }} at {{ p.liquidity.time.strftime('%d %b %H:%M') if p.liquidity.time else "-" }}</span>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td>
+            {% if p.structure %}
+              {{ p.structure.type }} {{ (p.structure.side or "").title() }}<br />
+              <span class="setup-note-inline" style="max-width:none;">{{ p.structure.bias or "-" }}{% if p.structure.candle_count %} &middot; {{ p.structure.candle_count }} candles{% endif %}</span>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td>
+            {% if p.entry %}
+              {{ p.entry.type }} @ {{ "%.1f"|format(p.entry.price) if p.entry.price is not none else "-" }}<br />
+              <span class="setup-note-inline" style="max-width:none;">SL {{ "%.1f"|format(p.entry.stop_loss) if p.entry.stop_loss is not none else "-" }} &middot; TP {{ "%.1f"|format(p.entry.target) if p.entry.target is not none else "-" }}</span>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td>
+            {% if p.outcome and p.outcome.status != 'MANUAL_EXIT' %}
+              {{ m.status_pill(p.outcome.status) }} {{ m.pnl_span(p.outcome.pnl_points) }} pts
+            {% elif p.outcome %}
+              <span class="pill info"><span class="pill-dot"></span>Still Open</span> {{ m.pnl_span(p.outcome.pnl_points) }} pts
+            {% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Nothing tapped a previous-week high/low yet for any tracked symbol this week.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% if open_trades %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Open Positions</h2>
+      <div class="card-sub">Trades from any signal week still awaiting entry or SL/TP - re-checked on every poll</div>
+    </div>
+  </div>
+  <div class="card-body flush table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Stock</th><th>Signal Week</th><th>Direction</th><th>Entry Type</th><th class="num">Entry</th><th class="num">SL</th><th class="num">TP</th><th class="num">Unrealized P/L</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for t in open_trades %}
+        <tr>
+          <td>{{ t.symbol_label }}</td>
+          <td>{{ t.trade_week_start.strftime('%d %b %Y') }}</td>
+          <td>{{ m.direction_badge(t.direction) }}</td>
+          <td>{{ t.entry_type or "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.entry_price) if t.entry_price else "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.stop_loss) if t.stop_loss else "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.take_profit) if t.take_profit else "-" }}</td>
+          <td class="num">{{ m.pnl_span(t.pnl_points) }}</td>
+          <td>{{ m.status_pill(t.status) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Live Chart</h2>
+      <div class="card-sub">Candles so far this week for the selected stock &middot; auto-refreshes every 60s</div>
+    </div>
+    <div class="field" style="min-width:180px;">
+      <select id="chart-symbol-select">
+        {% for row in setups %}
+          <option value="{{ row.trade.symbol }}" {% if row.trade.symbol == chart_symbol %}selected{% endif %}>{{ row.trade.symbol_label }}</option>
+        {% endfor %}
+        {% if not setups %}<option value="{{ chart_symbol }}" selected>{{ chart_symbol[:-3] if chart_symbol.endswith('.NS') else chart_symbol }}</option>{% endif %}
+      </select>
+    </div>
+  </div>
+  <div class="card-body" style="text-align: center;">
+    <img id="live-chart-img" src="/api/live/chart.png?symbol={{ chart_symbol }}" alt="This week's live chart"
+         style="max-width: 100%; border-radius: 8px;"
+         onload="this.style.display='block'; document.getElementById('live-chart-empty').style.display='none';"
+         onerror="this.style.display='none'; document.getElementById('live-chart-empty').style.display='block';">
+    <div id="live-chart-empty" class="empty-state" style="display: none;">
+      No chart data yet for this week.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Live Monitor Control</h2>
+      <div class="card-sub">
+        {% if live_status.enabled %}
+          Armed &middot; polling all {{ symbols_tracked }} tracked symbols every {{ settings.poll_interval_seconds }}s during 09:15&ndash;15:30 IST, every trading day, until you click Stop (a full poll cycle across {{ symbols_tracked }} symbols can take a while - a swing position can also stay open for several weeks).
+        {% else %}
+          Not started. Starting arms the live monitor indefinitely across all {{ symbols_tracked }} tracked symbols &mdash; it keeps polling every subsequent trading day (not just today) so open positions get checked, until you click Stop.
+        {% endif %}
+      </div>
+    </div>
+    {% if live_status.enabled %}
+      <button class="btn danger" hx-post="/api/live/stop" hx-swap="none" hx-on::after-request="window.location.reload()">Stop</button>
+    {% else %}
+      <button class="btn primary" hx-post="/api/live/start" hx-swap="none" hx-on::after-request="window.location.reload()">Start Live Monitoring</button>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <form class="form-row" hx-post="/api/live/structure-interval" hx-swap="none" hx-on::after-request="window.location.reload()">
+      <div class="field">
+        <label for="live-interval">Structure/Entry Timeframe</label>
+        <select name="interval" id="live-interval">
+          {% for iv in structure_intervals %}
+            <option value="{{ iv }}" {% if iv == live_status.structure_interval %}selected{% endif %}>{{ iv }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn" type="submit">Apply</button>
+    </form>
+    <div class="tile-sub" style="margin-top: 8px;">
+      Takes effect on the next poll &mdash; no restart needed. Previous-week high/low liquidity detection is unaffected either way.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Equity Curve</h2>
+      <div class="card-sub">Cumulative points across resolved (Target/Stop hit) live trades, all tracked symbols combined</div>
+    </div>
+    <button class="btn" hx-post="/api/live/poll" hx-swap="none" hx-on::after-request="window.location.reload()" title="Poll now">Refresh Now</button>
+  </div>
+  <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Recent Trades</h2>
+      <div class="card-sub">Latest live-monitored signal weeks, across all tracked symbols</div>
+    </div>
+    <a class="btn" href="/trades">View all &rarr;</a>
+  </div>
+  <div class="card-body flush table-scroll">
+    {% if recent_trades %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Stock</th><th>Week</th><th>Direction</th><th>Entry Type</th><th>Entry</th><th>Exit</th>
+          <th class="num">P/L (pts)</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in recent_trades %}
+        <tr>
+          <td>{{ t.symbol_label }}</td>
+          <td>{{ t.trade_week_start.strftime('%d %b %Y') }}</td>
+          <td>{{ m.direction_badge(t.direction) }}</td>
+          <td>{{ t.entry_type or "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.entry_price) if t.entry_price else "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.exit_price) if t.exit_price else "-" }}</td>
+          <td class="num">{{ m.pnl_span(t.pnl_points) }}</td>
+          <td>{{ m.status_pill(t.status) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No live trades recorded yet. Click "Start Live Monitoring" above to begin monitoring during market hours (09:15&ndash;15:30 IST).</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  (function () {
+    const img = document.getElementById('live-chart-img');
+    const select = document.getElementById('chart-symbol-select');
+    function refresh() {
+      img.src = '/api/live/chart.png?symbol=' + encodeURIComponent(select.value) + '&t=' + Date.now();
+    }
+    select.addEventListener('change', refresh);
+    setInterval(refresh, 60000);
+  })();
+
+  const eqData = {{ equity_curve | tojson }};
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const styles = getComputedStyle(document.documentElement);
+  const good = styles.getPropertyValue('--status-good').trim();
+  const grid = styles.getPropertyValue('--grid-line').trim();
+  const ink = styles.getPropertyValue('--text-secondary').trim();
+
+  new Chart(document.getElementById('equityChart'), {
+    type: 'line',
+    data: {
+      labels: eqData.map(d => d.date),
+      datasets: [{
+        label: 'Cumulative Points',
+        data: eqData.map(d => d.equity),
+        borderColor: good,
+        backgroundColor: good + '22',
+        fill: true,
+        tension: 0.15,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: grid }, ticks: { color: ink, maxTicksLimit: 8 } },
+        y: { grid: { color: grid }, ticks: { color: ink } },
+      }
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+# Optional: only needed for the production Turso (remote libSQL) database
+# backend - see app/models/db.py. NOT needed for local runs (plain SQLite is
+# used automatically when TURSO_DATABASE_URL/TURSO_AUTH_TOKEN aren't set).
+#
+# On Windows, installing this requires a Rust + MSVC C++ build toolchain
+# (it compiles a native extension) - if you don't have that set up, skip
+# this file entirely for local development. The Dockerfile installs it
+# separately for production builds, where a prebuilt Linux wheel is used
+# instead of a source build, so this is a non-issue on Render/Docker.
+sqlalchemy-libsql==0.2.0

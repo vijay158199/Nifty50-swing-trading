@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Backtest{% endblock %}
+{% block page_title %}Backtest{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Run a Backtest</h2>
+      <div class="card-sub">Replays the strategy week-by-week over a historical date range</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <form class="form-row" hx-post="/backtest/run" hx-target="#backtest-run-area" hx-swap="innerHTML">
+      <div class="field">
+        <label for="start_date">Start Date</label>
+        <input type="date" name="start_date" id="start_date" value="{{ default_start }}" required />
+      </div>
+      <div class="field">
+        <label for="end_date">End Date</label>
+        <input type="date" name="end_date" id="end_date" value="{{ default_end }}" required />
+      </div>
+      <div class="field">
+        <label for="structure_interval">Timeframe</label>
+        <select name="structure_interval" id="structure_interval">
+          {% for iv in structure_intervals %}
+            <option value="{{ iv }}" {% if iv == default_structure_interval %}selected{% endif %}>{{ iv }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="symbol_scope">Stock(s)</label>
+        <select name="symbol_scope" id="symbol_scope">
+          <option value="all" selected>All Nifty 50 ({{ symbols|length }} stocks)</option>
+          {% for sym in symbols %}<option value="{{ sym }}">{{ sym[:-3] if sym.endswith('.NS') else sym }} only</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn primary" type="submit">Run Backtest</button>
+    </form>
+    <div class="note" style="margin-top: 14px;">
+      15-minute candles are only available from Yahoo Finance for the trailing ~60 days; a range going further
+      back automatically falls back to 1-hour candles for the WHOLE run (flagged "Reduced" in the results) rather
+      than mixing resolutions mid-run. 1-hour candles alone cover roughly the last 2 years. Previous-week
+      high/low liquidity detection is unaffected either way, since it's built from daily bars. Running against
+      all 50 stocks fetches data for each one in turn and can take several minutes - progress updates below
+      show which stock/week it's currently on.
+    </div>
+    <div id="backtest-run-area" style="margin-top: 16px;"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Past Runs</h2></div>
+  <div class="card-body flush table-scroll">
+    {% if runs %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Run</th><th>Range</th><th>Timeframe</th><th>Stocks</th><th>Status</th><th class="num">Trades</th><th class="num">Win Rate</th>
+            <th class="num">Net P/L (pts)</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        {% set r_sym_list = (r.symbols or "").split(",") if r.symbols else [] %}
+        <tr>
+          <td>#{{ r.id }}</td>
+          <td>{{ r.start_date.strftime('%d %b %Y') }} &ndash; {{ r.end_date.strftime('%d %b %Y') }}</td>
+          <td><span class="pill neutral"><span class="pill-dot"></span>{{ r.structure_interval or "1h" }}</span></td>
+          <td class="num">{{ r_sym_list|length if r_sym_list else "-" }}</td>
+          <td>
+            {% if r.status == 'DONE' %}<span class="pill good"><span class="pill-dot"></span>Done</span>
+            {% elif r.status == 'RUNNING' %}<span class="pill info"><span class="pill-dot"></span>Running</span>
+            {% else %}<span class="pill critical"><span class="pill-dot"></span>Failed</span>{% endif %}
+          </td>
+          <td class="num">{{ r.total_trades }}</td>
+          <td class="num">{{ "%.1f"|format(r.win_rate_pct) }}%</td>
+          <td class="num" style="color: {{ 'var(--status-good)' if r.net_profit_points > 0 else 'var(--status-critical)' if r.net_profit_points < 0 else 'inherit' }}">{{ "%+.1f"|format(r.net_profit_points) }}</td>
+          <td class="row-actions">
+            {% if r.status == 'DONE' %}<a class="btn small" href="/backtest/{{ r.id }}">View</a>{% endif %}
+            <form method="post" action="/backtest/{{ r.id }}/delete"
+                  onsubmit="return confirm('Delete backtest run #{{ r.id }} and all its trades? This can\'t be undone.');"
+                  style="display:inline;">
+              <button class="btn ghost small danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No backtests run yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

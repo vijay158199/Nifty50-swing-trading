@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in · RELIANCE Swing Dashboard</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+    <div class="card" style="width:100%; max-width:360px; padding:28px 26px 22px;">
+      <div style="text-align:center; margin-bottom:20px;">
+        <span class="brand-mark" style="font-size:20px;">RELIANCE&middot;SWING</span>
+        <div class="brand-sub" style="margin-top:4px;">Weekly Liquidity Sweep Strategy</div>
+      </div>
+
+      {% if error %}
+      <div class="note" style="margin-bottom: 14px; color: var(--status-critical); background: var(--status-critical-wash);">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/login" style="display:flex; flex-direction:column; gap:14px;">
+        <input type="hidden" name="next" value="{{ next or '/' }}" />
+        <div class="field">
+          <label for="username">Username</label>
+          <input type="text" name="username" id="username" autocomplete="username" required autofocus />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" name="password" id="password" autocomplete="current-password" required />
+        </div>
+        <button class="btn primary" type="submit" style="justify-content: center;">Sign In</button>
+      </form>
+
+      <div style="margin-top:18px; text-align:center; font-size:11.5px; color:var(--text-muted);">
+        Signals only &middot; no live orders are ever placed.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{% import "macros.html" as m %}
+{% if trades %}
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Stock</th><th>Week</th><th>Direction</th><th>Entry Type</th>
+      <th class="num">Entry</th><th class="num">Exit</th><th class="num">SL</th><th class="num">TP</th>
+      <th class="num">P/L (pts)</th><th class="num">P/L (&#8377;)</th><th class="num">R:R</th>
+      <th>Snapshot</th><th>Status</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in trades %}
+    <tr id="trade-row-{{ t.id }}">
+      <td>{{ t.symbol_label }}</td>
+      <td>{{ t.trade_week_start.strftime('%d %b %Y') }}</td>
+      <td>{{ m.direction_badge(t.direction) }}</td>
+      <td>{{ t.entry_type or "-" }}</td>
+      <td class="num">{{ "%.1f"|format(t.entry_price) if t.entry_price else "-" }}</td>
+      <td class="num">{{ "%.1f"|format(t.exit_price) if t.exit_price else "-" }}</td>
+      <td class="num">{{ "%.1f"|format(t.stop_loss) if t.stop_loss else "-" }}</td>
+      <td class="num">{{ "%.1f"|format(t.take_profit) if t.take_profit else "-" }}</td>
+      <td class="num">{{ m.pnl_span(t.pnl_points) }}</td>
+      <td class="num">{{ "%.0f"|format(t.pnl_amount) if t.pnl_amount is not none else "-" }}</td>
+      <td class="num">{{ "%.2f"|format(t.rr_achieved) if t.rr_achieved is not none else "-" }}</td>
+      <td>
+        {% if t.snapshot_path %}
+          {% set fname = t.snapshot_path.split('\\')[-1].split('/')[-1] %}
+          <div class="snap-cell">
+            <div>
+              <a href="/snapshots/{{ fname }}" target="_blank">
+                <img class="snap-thumb" src="/snapshots/{{ fname }}" alt="{{ t.trade_week_start.strftime('%d %b %Y') }} chart" />
+              </a>
+              <div class="snap-date">{{ t.trade_week_start.strftime('%d %b %Y') }}</div>
+            </div>
+            <a class="snap-dl" href="/snapshots/{{ fname }}" title="Download snapshot ({{ t.trade_week_start.strftime('%d %b %Y') }})" download>&#8595;</a>
+          </div>
+        {% else %}&mdash;{% endif %}
+      </td>
+      <td>
+        {{ m.status_pill(t.status) }}
+        {% if t.setup_notes %}<div class="setup-note-inline" title="{{ t.setup_notes }}">{{ t.setup_notes }}</div>{% endif %}
+      </td>
+      <td>
+        <button class="btn ghost small danger"
+                hx-delete="/trades/{{ t.id }}"
+                hx-target="#trade-row-{{ t.id }}"
+                hx-swap="outerHTML swap:0.15s"
+                hx-confirm="Delete this trade from the log? This can't be undone.">
+          Delete
+        </button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-state">No trades match these filters.</div>
+{% endif %}

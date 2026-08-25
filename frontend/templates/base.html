@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}RELIANCE Swing{% endblock %} · ICT/SMC Dashboard</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script>
+    // Applied before first paint so switching pages (or reloading) never
+    // flashes the wrong theme while app.css's own media-query default loads.
+    (function () {
+      var saved = localStorage.getItem("theme");
+      if (saved === "dark" || saved === "light") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    })();
+  </script>
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/alpine.min.js" defer></script>
+  <script src="/static/js/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-shell" x-data="{ navOpen: false }" :class="{ 'nav-open': navOpen }">
+    <nav class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">RELIANCE&middot;SWING</span>
+        <button class="nav-close" type="button" @click="navOpen = false" aria-label="Close menu">&times;</button>
+      </div>
+      <div class="brand-sub" style="padding: 0 10px 14px;">Weekly Liquidity Sweep Strategy</div>
+
+      <a class="nav-link {% if active == 'overview' %}active{% endif %}" href="/">
+        <span class="dot"></span> Overview
+      </a>
+      <a class="nav-link {% if active == 'trades' %}active{% endif %}" href="/trades">
+        <span class="dot"></span> Trade History
+      </a>
+      <a class="nav-link {% if active == 'monthly' %}active{% endif %}" href="/monthly">
+        <span class="dot"></span> Monthly Performance
+      </a>
+      <a class="nav-link {% if active == 'backtest' %}active{% endif %}" href="/backtest">
+        <span class="dot"></span> Backtest
+      </a>
+      <a class="nav-link {% if active == 'logs' %}active{% endif %}" href="/logs">
+        <span class="dot"></span> Logs &amp; Health
+      </a>
+
+      <div class="sidebar-footer">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+          <span style="font-weight:600; color:var(--text-secondary);">{{ request.session.get('username') or '' }}</span>
+          <button type="button" id="theme-toggle" class="btn small" style="margin-left:auto; padding:4px 10px; font-size:12px;" title="Toggle light/dark theme"></button>
+          <a href="/logout" class="btn small" style="padding:4px 10px; font-size:12px;">Logout</a>
+        </div>
+        Signals only &middot; no live orders are ever placed.<br />
+        Data: Yahoo Finance (yfinance).
+      </div>
+    </nav>
+    <div class="nav-scrim" @click="navOpen = false"></div>
+
+    <div class="main">
+      <div class="topbar">
+        <button class="nav-toggle" type="button" @click="navOpen = true" aria-label="Open menu">
+          <span></span><span></span><span></span>
+        </button>
+        <h1>{% block page_title %}Overview{% endblock %}</h1>
+        <div class="topbar-meta">
+          {% if is_trading_day %}
+            <span class="pill info"><span class="pill-dot"></span>Market day</span>
+          {% else %}
+            <span class="pill neutral"><span class="pill-dot"></span>Non-trading day</span>
+          {% endif %}
+          <span class="pill neutral num"><span class="pill-dot"></span>{{ now.strftime('%d %b %Y, %H:%M') }} IST</span>
+        </div>
+      </div>
+      <div class="content">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var btn = document.getElementById("theme-toggle");
+      if (!btn) return;
+      function current() {
+        return document.documentElement.getAttribute("data-theme") ||
+          (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      }
+      function render() {
+        btn.textContent = current() === "dark" ? "Light mode" : "Dark mode";
+      }
+      render();
+      btn.addEventListener("click", function () {
+        var next = current() === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("theme", next);
+        render();
+      });
+    })();
+  </script>
+</body>
+</html>

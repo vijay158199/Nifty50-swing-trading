@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}Backtest #{{ run.id }}{% endblock %}
+{% block page_title %}Backtest #{{ run.id }}{% endblock %}
+
+{% block content %}
+{% if not run %}
+<div class="empty-state">Run not found.</div>
+{% else %}
+<div class="card-header" style="padding:0 0 4px;">
+  <div class="card-sub">
+    {{ run.start_date.strftime('%d %b %Y') }} &ndash; {{ run.end_date.strftime('%d %b %Y') }}
+    &middot; <span class="pill neutral"><span class="pill-dot"></span>{{ run.structure_interval or "1h" }} timeframe</span>
+    {% set sym_list = (run.symbols or "").split(",") if run.symbols else [] %}
+    &middot; <span class="pill neutral"><span class="pill-dot"></span>{{ sym_list|length }} symbol{{ "s" if sym_list|length != 1 else "" }}</span>
+  </div>
+  {% if run.report_path %}
+  <a class="btn primary" href="/download/report/{{ run.report_path.split('\\')[-1].split('/')[-1] }}">Download Excel Report</a>
+  {% endif %}
+</div>
+
+<div class="tile-grid">
+  <div class="tile"><div class="tile-label">Resolved Trades</div><div class="tile-value">{{ run.total_trades }}</div></div>
+  <div class="tile"><div class="tile-label">Win Rate</div><div class="tile-value good">{{ "%.1f"|format(run.win_rate_pct) }}%</div>
+    <div class="tile-sub">{{ run.winning_trades }}W / {{ run.losing_trades }}L</div></div>
+  <div class="tile"><div class="tile-label">Net Profit</div>
+    <div class="tile-value {{ 'good' if run.net_profit_points > 0 else 'critical' }}">{{ "%+.1f"|format(run.net_profit_points) }} pts</div>
+    <div class="tile-sub num">&#8377;{{ "%.0f"|format(run.net_profit_amount) }}</div></div>
+  <div class="tile"><div class="tile-label">Max Drawdown</div><div class="tile-value critical">{{ "%.1f"|format(run.max_drawdown_points) }} pts</div></div>
+  <div class="tile"><div class="tile-label">Max Win / Loss Streak</div>
+    <div class="tile-value" style="font-size:18px;"><span style="color:var(--status-good)">{{ run.max_winning_streak }}W</span> / <span style="color:var(--status-critical)">{{ run.max_losing_streak }}L</span></div></div>
+  <div class="tile"><div class="tile-label">Avg Profit / Loss per Trade</div>
+    <div class="tile-value" style="font-size:18px;"><span style="color:var(--status-good)">{{ "%+.1f"|format(run.avg_profit_per_trade) }}</span> / <span style="color:var(--status-critical)">{{ "%+.1f"|format(run.avg_loss_per_trade) }}</span></div></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Monthly Performance</h2></div>
+  <div class="card-body flush table-scroll">
+    {% if monthly %}
+    <table class="data-table">
+      <thead><tr><th>Month</th><th class="num">Trades</th><th class="num">Win Rate</th><th class="num">Net P/L (pts)</th></tr></thead>
+      <tbody>
+        {% for month, mstat in monthly.items() %}
+        <tr>
+          <td>{{ month }}</td><td class="num">{{ mstat.trades }}</td><td class="num">{{ "%.1f"|format(mstat.win_rate_pct) }}%</td>
+          <td class="num" style="color: {{ 'var(--status-good)' if mstat.net_points > 0 else 'var(--status-critical)' if mstat.net_points < 0 else 'inherit' }}">{{ "%+.1f"|format(mstat.net_points) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<div class="empty-state">No resolved trades in this range.</div>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h2>Trade Log</h2>
+    <div class="card-sub">
+      Setups only (liquidity tap or further) - {{ quiet_count }} quiet symbol-week{{ "s" if quiet_count != 1 else "" }}
+      with no setup at all are omitted from this view but are in the downloaded Excel report.
+    </div>
+  </div>
+  <div class="card-body flush table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr><th>Stock</th><th>Week</th><th>Direction</th><th>Entry Type</th><th class="num">Entry</th><th class="num">Exit</th>
+            <th class="num">P/L (pts)</th><th>Snapshot</th><th>Status</th><th>Res.</th></tr>
+      </thead>
+      <tbody>
+        {% for t in trades %}
+        <tr>
+          <td>{{ t.symbol_label }}</td>
+          <td>{{ t.trade_week_start.strftime('%d %b %Y') }}</td>
+          <td>{{ m.direction_badge(t.direction) }}</td>
+          <td>{{ t.entry_type or "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.entry_price) if t.entry_price else "-" }}</td>
+          <td class="num">{{ "%.1f"|format(t.exit_price) if t.exit_price else "-" }}</td>
+          <td class="num">{{ m.pnl_span(t.pnl_points) }}</td>
+          <td>
+            {% if t.snapshot_path %}
+              {% set fname = t.snapshot_path.split('\\')[-1].split('/')[-1] %}
+              <div class="snap-cell">
+                <div>
+                  <a href="/snapshots/{{ fname }}" target="_blank">
+                    <img class="snap-thumb" src="/snapshots/{{ fname }}" alt="{{ t.trade_week_start.strftime('%d %b %Y') }} chart" />
+                  </a>
+                  <div class="snap-date">{{ t.trade_week_start.strftime('%d %b %Y') }}</div>
+                </div>
+                <a class="snap-dl" href="/snapshots/{{ fname }}" title="Download snapshot ({{ t.trade_week_start.strftime('%d %b %Y') }})" download>&#8595;</a>
+              </div>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td>
+            {{ m.status_pill(t.status) }}
+            {% if t.setup_notes %}<div class="setup-note-inline" title="{{ t.setup_notes }}">{{ t.setup_notes }}</div>{% endif %}
+          </td>
+          <td>{% if t.reduced_resolution %}<span class="pill warning"><span class="pill-dot"></span>Reduced</span>{% else %}<span class="pill neutral"><span class="pill-dot"></span>Full</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

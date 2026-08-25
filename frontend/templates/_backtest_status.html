@@ -1,0 +1,35 @@
+{% if status == "RUNNING" %}
+<div class="card" id="backtest-status" hx-get="/backtest/status/{{ run_id }}" hx-trigger="every 1.5s" hx-swap="outerHTML">
+  <div class="card-body">
+    <div class="pill info"><span class="pill-dot"></span>Running backtest #{{ run_id }}&hellip;</div>
+    {% if progress %}
+    <div style="margin-top:10px; font-size: 12.5px; color: var(--text-secondary);">
+      {{ progress.current }} / {{ progress.total }} &mdash; {{ progress.label }}
+    </div>
+    <div style="margin-top:6px; height:6px; background: var(--surface-2); border-radius: 3px; overflow:hidden;">
+      <div style="height:100%; width: {{ (progress.current / progress.total * 100) if progress.total else 0 }}%; background: var(--accent);"></div>
+    </div>
+    {% else %}
+    <div style="margin-top:10px; font-size: 12.5px; color: var(--text-secondary);">Fetching data&hellip;</div>
+    {% endif %}
+  </div>
+</div>
+{% elif status == "DONE" %}
+<div class="card" id="backtest-status">
+  <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap: wrap;">
+    <div class="pill good"><span class="pill-dot"></span>Backtest #{{ run_id }} complete &mdash; {{ run.total_trades }} trades, {{ "%.1f"|format(run.win_rate_pct) }}% win rate</div>
+    <a class="btn primary" href="/backtest/{{ run_id }}">View Results &rarr;</a>
+  </div>
+</div>
+{% elif status == "FAILED" %}
+<div class="card" id="backtest-status">
+  <div class="card-body">
+    <div class="pill critical"><span class="pill-dot"></span>Backtest #{{ run_id }} failed</div>
+    {% if run and run.error_message %}<div class="note" style="margin-top:10px;">{{ run.error_message }}</div>{% endif %}
+  </div>
+</div>
+{% else %}
+<div class="card" id="backtest-status" hx-get="/backtest/status/{{ run_id }}" hx-trigger="every 1.5s" hx-swap="outerHTML">
+  <div class="card-body"><div class="pill neutral"><span class="pill-dot"></span>Starting&hellip;</div></div>
+</div>
+{% endif %}

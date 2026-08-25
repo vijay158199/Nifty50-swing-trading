@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Logs & Health{% endblock %}
+{% block page_title %}Logs &amp; Health{% endblock %}
+
+{% block content %}
+<div class="tile-grid">
+  <div class="tile">
+    <div class="tile-label">Live Monitor</div>
+    {% if heartbeat %}
+      {% if heartbeat.status == 'RUNNING' %}
+        <div class="tile-value" style="font-size:16px;"><span class="pill good"><span class="pill-dot"></span>Running</span></div>
+      {% elif heartbeat.status == 'ERROR' %}
+        <div class="tile-value" style="font-size:16px;"><span class="pill critical"><span class="pill-dot"></span>Error</span></div>
+      {% else %}
+        <div class="tile-value" style="font-size:16px;"><span class="pill neutral"><span class="pill-dot"></span>Stopped</span></div>
+      {% endif %}
+      <div class="tile-sub">Last poll: {{ heartbeat.last_poll_at.strftime('%d %b %H:%M:%S') }} IST</div>
+      {% if heartbeat.detail %}<div class="tile-sub">{{ heartbeat.detail }}</div>{% endif %}
+    {% else %}
+      <div class="tile-value" style="font-size:16px;"><span class="pill neutral"><span class="pill-dot"></span>No data</span></div>
+    {% endif %}
+  </div>
+  <div class="tile">
+    <div class="tile-label">Scheduled Jobs</div>
+    <div class="tile-value" style="font-size:16px;">{{ jobs|length }} active</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Scheduler Jobs</h2></div>
+  <div class="card-body flush table-scroll">
+    {% if jobs %}
+    <table class="data-table">
+      <thead><tr><th>Job ID</th><th>Next Run (IST)</th></tr></thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr><td>{{ j.id }}</td><td>{{ j.next_run.strftime('%d %b %Y %H:%M:%S') if j.next_run else "-" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">Scheduler not running.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Recent Log Events</h2></div>
+  <div class="card-body flush table-scroll">
+    {% if errors %}
+    <table class="data-table">
+      <thead><tr><th>Time</th><th>Level</th><th>Source</th><th>Message</th></tr></thead>
+      <tbody>
+        {% for e in errors %}
+        <tr>
+          <td class="num">{{ e.created_at.strftime('%d %b %H:%M:%S') }}</td>
+          <td>
+            {% if e.level == 'ERROR' %}<span class="pill critical"><span class="pill-dot"></span>Error</span>
+            {% elif e.level == 'WARNING' %}<span class="pill warning"><span class="pill-dot"></span>Warning</span>
+            {% else %}<span class="pill neutral"><span class="pill-dot"></span>Info</span>{% endif %}
+          </td>
+          <td>{{ e.source }}</td>
+          <td style="white-space: normal;">{{ e.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No events logged yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

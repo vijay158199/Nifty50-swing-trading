@@ -1,0 +1,39 @@
+{% macro status_pill(status) -%}
+  {%- if status == 'TARGET_HIT' -%}
+    <span class="pill good"><span class="pill-dot"></span>Target Hit</span>
+  {%- elif status == 'STOP_HIT' -%}
+    <span class="pill critical"><span class="pill-dot"></span>Stop Hit</span>
+  {%- elif status == 'MANUAL_EXIT' -%}
+    <span class="pill info"><span class="pill-dot"></span>Still Open</span>
+  {%- elif status == 'OPEN' -%}
+    <span class="pill info"><span class="pill-dot"></span>Open</span>
+  {%- elif status == 'AWAITING_ENTRY' -%}
+    <span class="pill info"><span class="pill-dot"></span>Awaiting Entry</span>
+  {%- elif status == 'NO_SETUP' -%}
+    <span class="pill neutral"><span class="pill-dot"></span>No Setup</span>
+  {%- else -%}
+    <span class="pill neutral"><span class="pill-dot"></span>{{ status or "-" }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro direction_badge(direction) -%}
+  {%- if direction == 'BUY' -%}
+    <span class="dir-buy">&#9650; BUY</span>
+  {%- elif direction == 'SELL' -%}
+    <span class="dir-sell">&#9660; SELL</span>
+  {%- else -%}
+    <span>-</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro pnl_span(points) -%}
+  {%- if points is none -%}
+    <span class="num">-</span>
+  {%- elif points > 0 -%}
+    <span class="num" style="color: var(--status-good); font-weight: 600;">+{{ "%.1f"|format(points) }}</span>
+  {%- elif points < 0 -%}
+    <span class="num" style="color: var(--status-critical); font-weight: 600;">{{ "%.1f"|format(points) }}</span>
+  {%- else -%}
+    <span class="num">0.0</span>
+  {%- endif -%}
+{%- endmacro %}

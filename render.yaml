@@ -1,0 +1,27 @@
+services:
+  - name: reliance-swing-bot
+    type: web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /login
+    envVars:
+      # Turso (persistent DB - see db.py). Get these from app.turso.tech's
+      # database page: connection URL + a generated auth token.
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      # Real login credentials - do NOT leave these as the vijay/changeme123
+      # defaults once this is reachable on the public internet.
+      - key: SWING_AUTH_USERNAME
+        sync: false
+      - key: SWING_AUTH_PASSWORD
+        sync: false
+      # Signs the login session cookie - auto-generated once, then stable
+      # across redeploys (unlike the local-file fallback, which wouldn't
+      # survive Render's ephemeral disk and would log everyone out on every
+      # restart/sleep-wake cycle).
+      - key: SWING_SESSION_SECRET
+        generateValue: true

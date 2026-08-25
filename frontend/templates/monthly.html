@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Monthly Performance{% endblock %}
+{% block page_title %}Monthly Performance{% endblock %}
+
+{% block content %}
+<div class="tile-grid">
+  <div class="tile">
+    <div class="tile-label">Total Resolved Trades (Live)</div>
+    <div class="tile-value">{{ stats.total_trades }}</div>
+    {% if stats.still_open_count %}<div class="tile-sub">+{{ stats.still_open_count }} still open</div>{% endif %}
+  </div>
+  <div class="tile">
+    <div class="tile-label">Max Winning Streak</div>
+    <div class="tile-value good">{{ stats.max_winning_streak }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Max Losing Streak</div>
+    <div class="tile-value critical">{{ stats.max_losing_streak }}</div>
+  </div>
+  <div class="tile">
+    <div class="tile-label">Max Drawdown</div>
+    <div class="tile-value critical">{{ "%.1f"|format(stats.max_drawdown_points) }} pts</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>Net P/L by Month</h2>
+      <div class="card-sub">Live trades, resolved (Target/Stop hit) only</div>
+    </div>
+  </div>
+  <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h2>Monthly Breakdown</h2></div>
+  <div class="card-body flush table-scroll">
+    {% if stats.monthly %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Month</th><th class="num">Trades</th><th class="num">Wins</th><th class="num">Losses</th>
+            <th class="num">Win Rate</th><th class="num">Net P/L (pts)</th><th class="num">Net P/L (&#8377;)</th></tr>
+      </thead>
+      <tbody>
+        {% for month, mstat in stats.monthly.items() %}
+        <tr>
+          <td>{{ month }}</td>
+          <td class="num">{{ mstat.trades }}</td>
+          <td class="num">{{ mstat.wins }}</td>
+          <td class="num">{{ mstat.losses }}</td>
+          <td class="num">{{ "%.1f"|format(mstat.win_rate_pct) }}%</td>
+          <td class="num" style="color: {{ 'var(--status-good)' if mstat.net_points > 0 else 'var(--status-critical)' if mstat.net_points < 0 else 'inherit' }}">{{ "%+.1f"|format(mstat.net_points) }}</td>
+          <td class="num">{{ "%.0f"|format(mstat.net_amount) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No resolved live trades yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  const monthly = {{ stats.monthly | tojson }};
+  const labels = Object.keys(monthly);
+  const values = labels.map(k => monthly[k].net_points);
+  const styles = getComputedStyle(document.documentElement);
+  const good = styles.getPropertyValue('--status-good').trim();
+  const critical = styles.getPropertyValue('--status-critical').trim();
+  const grid = styles.getPropertyValue('--grid-line').trim();
+  const ink = styles.getPropertyValue('--text-secondary').trim();
+
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Net P/L (points)',
+        data: values,
+        backgroundColor: values.map(v => v >= 0 ? good : critical),
+        borderRadius: 4,
+        maxBarThickness: 42,
+      }]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink } },
+        y: { grid: { color: grid }, ticks: { color: ink }, beginAtZero: true },
+      }
+    }
+  });
+</script>
+{% endblock %}
