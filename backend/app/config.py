@@ -131,12 +131,18 @@ class Settings(BaseSettings):
     # real out-of-sample evidence. require_bos_only alone keeps a larger
     # (still small) 17-trade sample.
     require_buy_only: bool = False
-    # If True, a BOS/CHOCH break only counts once the breaking candle itself
-    # shows strong displacement (a "long body"), not just any close beyond
-    # the swing point - same rule as the intraday engine.
+    # If True, a BOS/CHOCH break only counts once the breaking candle(s)
+    # show strong displacement (a "long body"), not just any close beyond
+    # the swing point.
     require_displacement_candle: bool = True
     displacement_lookback_bars: int = 20       # prior bars used for the average-body baseline
-    displacement_body_multiplier: float = 1.5  # confirmation candle's body must be >= this x that average
+    displacement_body_multiplier: float = 1.5  # each displacement candle's body must be >= this x that average
+    # How many consecutive candles, ending at and including the
+    # confirmation candle, must EACH individually clear the multiplier
+    # threshold above. Explicit user spec (2026-08-28): a single long-bodied
+    # candle isn't enough on its own to confirm BOS/CHOCH - require a
+    # sustained run of at least 2.
+    displacement_min_candles: int = 2
     # Entry model: first zone TOUCHED wins, checked in this priority order.
     # Changed from FVG-only (2026-08-25) after a 2-year, 50-symbol sweep:
     # FVG-only won 32.0%, all-four-mixed won 42.4% AND had by far the best

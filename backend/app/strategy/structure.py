@@ -19,10 +19,12 @@ downgraded back to a fresh BOS search if price reverts again - it either
 confirms within the search window or the week produces no signal.
 
 settings.require_displacement_candle (default True) additionally requires
-the confirmation candle itself - the one whose close actually fires the BOS
-or confirms the CHOCH - to have a "long body" relative to recent bars (see
-_is_displacement_candle), rejecting weak, low-conviction closes beyond a
-swing point that aren't backed by real displacement.
+the confirmation candle - the one whose close actually fires the BOS or
+confirms the CHOCH - AND the settings.displacement_min_candles-1 candle(s)
+immediately before it (default 2 candles total) to EACH individually have a
+"long body" relative to recent bars (see _is_displacement_move), rejecting
+a single spike candle as well as a routine close beyond a swing point that
+isn't backed by real, sustained displacement.
 
 `search_until` bounds how far forward (by timestamp, not bar count) this
 scans - unlike the intraday engine's single-session bar-count conversion,
@@ -40,21 +42,31 @@ from app.strategy.swings import confirmed_swings_as_of, last_swing
 from app.strategy.types import Direction, LiquiditySide, StructureEvent, StructureType, SwingPoint
 
 
-def _is_displacement_candle(candles: pd.DataFrame, i: int, lookback: int, multiplier: float) -> bool:
-    """True if bar `i`'s body is at least `multiplier`x the average body of
-    the up-to-`lookback` bars immediately before it - a "long body" showing
-    strong displacement rather than a routine close beyond a swing point.
-    With no prior bars to compare against, there's no baseline to judge
-    "long" by, so it's rejected rather than assumed to pass."""
-    start = max(0, i - lookback)
-    window = candles.iloc[start:i]
+def _is_displacement_move(candles: pd.DataFrame, i: int, lookback: int, multiplier: float, min_candles: int) -> bool:
+    """True if bar `i` AND the `min_candles - 1` bar(s) immediately before it
+    EACH individually have a body at least `multiplier`x the average body of
+    the up-to-`lookback` bars immediately before that run - a sustained run
+    of "long body" candles showing real displacement, not just one spike
+    candle. The average baseline is computed once (from the bars right
+    before the run, excluding the run itself) and shared by every candle in
+    the run - the same "recent normal" each of them has to individually
+    clear. With too few prior bars for the run itself or for a baseline to
+    judge "long" by, this is rejected rather than assumed to pass."""
+    run_start = i - min_candles + 1
+    if run_start < 0:
+        return False
+    baseline_start = max(0, run_start - lookback)
+    window = candles.iloc[baseline_start:run_start]
     if window.empty:
         return False
     avg_body = (window["Close"] - window["Open"]).abs().mean()
     if avg_body <= 0:
         return False
-    body = abs(float(candles.iloc[i]["Close"]) - float(candles.iloc[i]["Open"]))
-    return body >= avg_body * multiplier
+    for j in range(run_start, i + 1):
+        body = abs(float(candles.iloc[j]["Close"]) - float(candles.iloc[j]["Open"]))
+        if body < avg_body * multiplier:
+            return False
+    return True
 
 
 def detect_bos_choch(
@@ -85,10 +97,12 @@ def detect_bos_choch(
         swing_low = last_swing(swings_so_far, "low")
         broke_high = swing_high is not None and close > swing_high.price
         broke_low = swing_low is not None and close < swing_low.price
-        # The confirmation candle itself must show strong displacement (a
-        # "long body"), not just any close beyond the swing point.
-        is_displacement = not settings.require_displacement_candle or _is_displacement_candle(
-            candles, i, settings.displacement_lookback_bars, settings.displacement_body_multiplier
+        # The confirmation candle, and the candle(s) immediately before it,
+        # must each show strong displacement (a "long body"), not just any
+        # close beyond the swing point.
+        is_displacement = not settings.require_displacement_candle or _is_displacement_move(
+            candles, i, settings.displacement_lookback_bars, settings.displacement_body_multiplier,
+            settings.displacement_min_candles,
         )
 
         if pending is None:
